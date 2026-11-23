@@ -82,6 +82,9 @@ th{font-weight:500;color:var(--mute);font-size:13px}
 .pad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px 10px 16px;background:var(--soft);border-top:1px solid var(--line)}
 .pad button{height:58px;border-radius:12px;background:var(--bg);border:1px solid var(--line);font-size:26px;font-weight:500;box-shadow:0 1px 0 var(--line)}
 .pad button:active{background:var(--cb2)}
+.units{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pad .units button{height:46px;background:var(--cb2);border-color:var(--cb);color:var(--navy);font-weight:600;font-size:20px}
+.mdesc{color:var(--mute);font-size:14px;margin:8px 0 0}
 .pad .w2{grid-column:span 2}.pad .fn{font-size:16px;font-weight:500;color:var(--mute)}
 .pad .sub{background:var(--cb);border-color:var(--cb);color:var(--ink);font-weight:600}
 .pad .sub:active{background:#a3cde3}
@@ -119,13 +122,18 @@ summary span{color:var(--mute);font-weight:400}
     <p>Mental math drills built on the MCA casing math tricks. Every answer comes with the fastest way to do it in your head.</p>
   </div>
   <div class="sec">
+    <div class="lab">Mode</div>
+    <div class="seg" id="mode"><button data-m="methods">All methods</button><button data-m="zeros">Zero drill</button></div>
+    <p class="mdesc" id="mdesc"></p>
+  </div>
+  <div class="sec">
     <div class="lab">Questions per set</div>
     <div class="seg" id="len"></div>
   </div>
   <div class="sec">
     <button class="tog" id="weak" aria-pressed="false"><span class="sw"></span><span><b>Focus on weak spots</b><span>Serves more of the methods you miss or answer slowly</span></span></button>
   </div>
-  <div class="sec">
+  <div class="sec" id="catsec">
     <div class="lab">Methods <button class="link" id="all">Select all</button></div>
     <div class="chips" id="cats"></div>
   </div>
@@ -151,6 +159,7 @@ summary span{color:var(--mute);font-weight:400}
   </div>
   <div class="tally"><span class="g" id="tg">✓ 0</span><span class="r" id="tr">✗ 0</span></div>
   <div class="pad" id="pad">
+    <div class="units" id="units"><button data-k="K">K</button><button data-k="M">M</button><button data-k="B">B</button><button data-k="T">T</button></div>
     <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="C" class="fn" aria-label="Clear">Clear</button>
     <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="B" class="fn" aria-label="Backspace">⌫</button>
     <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="-" class="fn" aria-label="Plus or minus">±</button>
@@ -185,6 +194,17 @@ const sh=n=>{const u=unit(n);return f(n/u.v,3)+u.s};
 const TIP={25:'÷ 25 = × 4, then ÷ 100',15:'÷ 3, then ÷ 5',12:'÷ 4, then ÷ 3',8:'halve three times',6:'halve, then ÷ 3',4:'halve twice',5:'× 2, then ÷ 10',45:'÷ 9, then ÷ 5'};
 const tip=d=>TIP[d]?` (${TIP[d]})`:'';
 const DEC={2:'0.5',3:'0.333',4:'0.25',5:'0.2',6:'0.167',7:'0.143',8:'0.125',9:'0.111',11:'0.091',12:'0.083',15:'0.067'};
+const UN={0:'',3:'K',6:'M',9:'B',12:'T'},UW={0:'plain',3:'K',6:'M',9:'B',12:'T'};
+const nm=(n,e)=>f(n)+UN[e];
+const norm=(n,e)=>{n=R(n);while(n>=1000&&e<12){n=R(n/1000);e+=3}while(n<1&&e>0){n=R(n*1000);e-=3}return[n,e]};
+const tz=n=>{let z=0;while(n>=10&&n%10==0){n/=10;z++}return z};
+const cmul=(a,b)=>{const za=tz(a),zb=tz(b),z=za+zb;if(!z)return`${f(a)} × ${f(b)} = ${f(a*b)}`;const a2=a/10**za,b2=b/10**zb;
+  return`Drop the zeros: ${a2} × ${b2} = ${f(a2*b2)}, add back ${z} zero${z>1?'s':''} → ${f(a*b)}`};
+const cdiv=(a,b)=>{const k=Math.min(tz(a),tz(b)),a2=a/10**k,b2=b/10**k,q=R(a/b);return(k?`Cancel ${k} zero${k>1?'s':''}: ${f(a2)} ÷ ${f(b2)} = ${f(q)}`:`${f(a)} ÷ ${f(b)} = ${f(q)}`)+tip(b2)};
+const ul=(e1,op,e2,e3)=>`Units: ${UW[e1]} ${op} ${UW[e2]} = ${UW[e3]}`;
+const ZC=[1,2,3,4,5,6,8,10,12,15,20,25,30,40,50,60,80,100,120,150,200,250,300,400,500,600,800];
+const ZP=[2,3,4,5,6,8,10,12,15,20,25,30,40,50,60,80,100,200,250,300,400,500];
+const ZS=[1,2,3,4,5,6,8,10,12,15,20,25,30,40,50,100,200,250,500];
 const G={
 round(){
   const dec=Math.random()<.5;let a=ri(12,98);if(a%10==0)a++;
@@ -207,7 +227,7 @@ zeros(){
   if(Math.random()<.5){
     const c1=pick([2,3,4,6,8,12,15,25,35,45]),c2=pick([2,3,4,5,6,8]),z1=ri(1,3),z2=ri(4,7);
     const n1=c1*10**z1,n2=c2*10**z2,P=n1*n2,core=c1*c2,u=unit(P);
-    return{q:`${sh(n1)} × ${sh(n2)}`,note:`Answer in ${u.name}, or the full number`,ans:P/u.v,alts:[P],tol:0,show:f(P/u.v)+u.s,steps:[
+    return{q:`${sh(n1)} × ${sh(n2)}`,note:`Answer in ${u.name}, or the full number`,ans:P/u.v,alts:[P],tol:0,units:1,show:f(P/u.v)+u.s,steps:[
       `Set the zeros aside: ${c1} × ${c2} = ${core}`,`Count the zeros: ${z1} + ${z2} = ${z1+z2}`,
       `${core} followed by ${z1+z2} zeros = ${f(P)}`,`= ${f(P/u.v)}${u.s}`]};
   }
@@ -290,13 +310,53 @@ sub(){
 be(){
   const cm=pick([5,8,10,12,15,20,25,30,40,50]),vc=pick([2,4,5,10,15,20,30]),P=vc+cm;
   const Q=pick([2,4,5,8,10,12,20,25,40,50,60,80,100,150,200])*1000,FC=Q*cm;
-  return{q:`Fixed costs $${sh(FC)}, price $${P}, variable cost $${vc} per unit`,long:1,note:'Break-even volume, in units',ans:Q,alts:[Q/1000],tol:0,show:f(Q)+' units ('+f(Q/1000)+'K)',steps:[
+  return{q:`Fixed costs $${sh(FC)}, price $${P}, variable cost $${vc} per unit`,long:1,note:'Break-even volume, in units',units:1,ans:Q,alts:[Q/1000],tol:0,show:f(Q)+' units ('+f(Q/1000)+'K)',steps:[
     'Break-even = Fixed costs ÷ (Price − Variable cost)',`Margin per unit: ${P} − ${vc} = $${cm}`,
     `Put fixed costs in K: ${f(FC/1000)}K ÷ ${cm} = ${f(Q/1000)}K${cm%10==0?' (drop a zero from both first)':tip(cm)}`]};
+},
+zm(){
+  let a,ea,b,eb,P;
+  do{a=pick(ZC);ea=pick([3,3,6,6,9]);if(Math.random()<.55){b=pick(ZP);eb=0}else{b=pick(ZS);eb=pick([3,6])}P=a*b}
+  while(ea+eb>9||P>100000||norm(P,ea+eb)[0]>=1000);
+  if(Math.random()<.4)[a,ea,b,eb]=[b,eb,a,ea];
+  const e=ea+eb,[n2,e2]=norm(P,e),V=P*10**e;
+  const s=[`Split numbers from units: ${f(a)} × ${f(b)}, then ${UW[ea]} × ${UW[eb]}`,cmul(a,b),ul(ea,'×',eb,e)+` → ${nm(P,e)}`];
+  if(e2!==e)s.push(`Move up a unit (1,000${UN[e]} = 1${UN[e+3]}): ${nm(P,e)} = ${nm(n2,e2)}`);
+  s.push(`Check in full: ${f(V)}`);
+  return{q:`${nm(a,ea)} × ${nm(b,eb)}`,ans:V,tol:V*1e-9,units:1,show:`${nm(n2,e2)} (${f(V)})`,steps:s,
+    alt:'Unit rules: K × K = M, K × M = B, M × M = T. A plain number keeps the unit it is multiplied by.'};
+},
+zd(){
+  let rc,re,dc,de,nn,ne;
+  do{rc=pick(ZC.filter(x=>x<=500));re=pick([0,3,3,6]);dc=pick(ZP);de=pick([0,0,3,6]);[nn,ne]=norm(rc*dc,re+de)}
+  while(ne<3||ne>12||!Number.isInteger(nn)||de>=ne);
+  const V=rc*10**re,s=[];let n=nn,e=ne;
+  if(e-de>re){while(e-de>re){n*=1000;e-=3}s.push(`${nm(nn,ne)} ÷ ${f(dc)} won't come out whole, so step down a unit: ${nm(nn,ne)} = ${nm(n,e)}`)}
+  s.push(ul(e,'÷',de,e-de),cdiv(n,dc)+` → ${nm(rc,re)}`,`Check in full: ${f(n*10**e)} ÷ ${f(dc*10**de)} = ${f(V)}`);
+  const word=Math.random()<.4;
+  return{q:word?`Revenue $${nm(nn,ne)} from ${nm(dc,de)} customers`:`${nm(nn,ne)} ÷ ${nm(dc,de)}`,long:word?1:0,note:word?'Revenue per customer ($)':'',
+    ans:V,tol:V*1e-9,units:1,show:`${word?'$':''}${nm(rc,re)}${re?` (${f(V)})`:''}`,steps:s,
+    alt:'Unit rules: M ÷ K = K, B ÷ M = K, B ÷ K = M, a unit ÷ the same unit = plain.'};
+},
+zp(){
+  const p=pick([1,5,10,15,20,25,30,40,50,75]);let a,ex,V;
+  do{a=pick(ZC);ex=pick([3,6,9]);V=R(p*a*10**ex/100)}while(!Number.isInteger(V)||V<1);
+  const X=nm(a,ex),s=[],nv=v=>{const[n,e]=norm(v/10**ex*1,ex);return nm(n,e)};
+  const FR={25:[1,4],50:[1,2],75:[3,4],20:[1,5]};
+  if(FR[p]){const[n,d]=FR[p];s.push(`${p}% = ${n}/${d}`,`${X} ÷ ${d} = ${nv(a*10**ex/d)}`+(n>1?`, × ${n} = ${nv(V)}`:''))}
+  else{const ten=a*10**ex/10;s.push(`10% of ${X} = ${nv(ten)} (drop a zero${norm(a/10,ex)[1]<ex?', then step down a unit':''})`);
+    if(p==1)s.push(`1% = 10% ÷ 10 = ${nv(V)}`);
+    if(p==5)s.push(`5% = half of 10% = ${nv(V)}`);
+    if(p==15)s.push(`5% = half of 10% = ${nv(ten/2)}`,`15% = ${nv(ten)} + ${nv(ten/2)} = ${nv(V)}`);
+    if([20,30,40].includes(p))s.push(`${p}% = ${p/10} × 10% = ${nv(V)}`)}
+  s.push(`Check in full: ${f(V)}`);
+  return{q:`${p}% of ${X}`,ans:V,tol:V*1e-9,units:1,show:V>=1000?`${nv(V)} (${f(V)})`:f(V),steps:s,
+    alt:'If the result drops below 1 of a unit, step down: 0.4M = 400K.'};
 }};
 const CATS=[['round','Round & adjust','×'],['split','Break apart','×'],['zeros','Move the zeros','×÷'],['sq','Squares','x²'],
 ['frac','Fractions → decimals','÷'],['fracpct','Percent as fraction','%'],['pct','Percent chunks','%'],['growth','Growth rate','%'],
-['share','Market share','%'],['add','Group to tens','+'],['sub','Subtract from round','−'],['be','Break-even','$']];
+['share','Market share','%'],['add','Group to tens','+'],['sub','Subtract from round','−'],['be','Break-even','$'],
+['zm','Zero drill ×','K·M','z'],['zd','Zero drill ÷','K·M','z'],['zp','Zero drill %','K·M','z']];
 return{G,CATS,f,R};
 })();
 /*MATH-END*/
@@ -310,7 +370,11 @@ const sec=ms=>(ms/1000).toFixed(1)+'s';
 
 function home(){
   $('len').innerHTML=[10,20,40].map(n=>`<button data-n="${n}" aria-pressed="${S.len==n}">${n}</button>`).join('');
-  $('cats').innerHTML=CATS.map(([id,nm,ic])=>`<button class="chip" data-c="${id}" aria-pressed="${S.on[id]}"><i>${ic}</i>${nm}</button>`).join('');
+  $('cats').innerHTML=CATS.filter(c=>!c[3]).map(([id,nm,ic])=>`<button class="chip" data-c="${id}" aria-pressed="${S.on[id]}"><i>${ic}</i>${nm}</button>`).join('');
+  const zm=S.mode==='zeros';
+  $('mode').innerHTML=[['methods','All methods'],['zeros','Zero drill (K · M · B)']].map(([m,t])=>`<button data-m="${m}" aria-pressed="${(S.mode||'methods')===m}">${t}</button>`).join('');
+  $('mdesc').textContent=zm?'Simple numbers, big units. Split number from unit, combine the units (K × K = M), then move up or down a unit. Answer with the K / M / B keys.':'Every method below, mixed.';
+  $('catsec').hidden=zm;
   $('weak').setAttribute('aria-pressed',!!S.weak);
   let N=0,C=0;
   $('rec').innerHTML=CATS.map(([id,nm])=>{const s=S.stats[id];if(!s||!s.n)return`<tr><td>${nm}</td><td>–</td><td>–</td><td>–</td></tr>`;
@@ -318,16 +382,17 @@ function home(){
   $('tot').textContent=N?`${N} reps · ${Math.round(100*C/N)}% right`:'No reps yet';
   $('reset').textContent='Reset record';show('home');
 }
+$('mode').onclick=e=>{const b=e.target.closest('button');if(b){S.mode=b.dataset.m;save();home()}};
 $('len').onclick=e=>{const b=e.target.closest('button');if(b){S.len=+b.dataset.n;save();home()}};
 $('cats').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.c;
-  if(S.on[id]&&CATS.filter(c=>S.on[c[0]]).length==1)return;S.on[id]=!S.on[id];save();home()};
+  if(S.on[id]&&CATS.filter(c=>!c[3]&&S.on[c[0]]).length==1)return;S.on[id]=!S.on[id];save();home()};
 $('all').onclick=()=>{for(const[c]of CATS)S.on[c]=true;save();home()};
 $('weak').onclick=()=>{S.weak=!S.weak;save();home()};
 $('reset').onclick=e=>{if(e.target.dataset.arm){S.stats={};save();delete e.target.dataset.arm;home()}else{e.target.dataset.arm=1;e.target.textContent='Tap again to erase your record'}};
 
 let run,cur,buf='',t0=0,revealed=false,last='';
 function choose(){
-  let act=CATS.map(c=>c[0]).filter(c=>S.on[c]);if(act.length>1)act=act.filter(c=>c!==last);
+  let act=S.mode==='zeros'?CATS.filter(c=>c[3]).map(c=>c[0]):CATS.filter(c=>!c[3]&&S.on[c[0]]).map(c=>c[0]);if(act.length>1)act=act.filter(c=>c!==last);
   const w=act.map(id=>{if(!S.weak)return 1;const s=S.stats[id];if(!s||s.n<3)return 2;return 1+5*(1-s.c/s.n)+(s.t/s.n>12000?1.5:0)});
   let x=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<act.length;i++){x-=w[i];if(x<=0)return act[i]}return act[act.length-1];
 }
@@ -337,7 +402,7 @@ function next(){
   const id=choose();last=id;cur=G[id]();cur.cat=id;run.i++;
   $('q').innerHTML=cur.q;$('q').className=cur.long?'long':'';$('note').textContent=cur.note||'';
   buf='';draw();$('inp').className='';$('prog').textContent=`${run.i} of ${run.n}`;$('barf').style.width=(100*(run.i-1)/run.n)+'%';
-  $('pad').hidden=false;$('rev').hidden=true;revealed=false;t0=performance.now();
+  $('pad').hidden=false;$('units').hidden=!cur.units;$('rev').hidden=true;revealed=false;t0=performance.now();
 }
 const draw=()=>{$('inp').textContent=buf};
 function key(k){
@@ -345,12 +410,14 @@ function key(k){
   if(k==='E')return submit(false);
   if(k==='C')buf='';else if(k==='B')buf=buf.slice(0,-1);
   else if(k==='-')buf=buf.startsWith('-')?buf.slice(1):'-'+buf;
+  else if('KMBT'.includes(k)){if(/\d/.test(buf))buf=buf.replace(/[KMBT]$/,'')+k}
+  else if(/[KMBT]$/.test(buf))return;
   else if(k==='.'){if(!buf.includes('.'))buf+=(/\d$/.test(buf)?'':'0')+'.'}
   else if(buf.replace(/[-.]/g,'').length<12)buf+=k;
   draw();
 }
 function submit(skip){
-  if(revealed)return;const u=parseFloat(buf);if(!skip&&!isFinite(u))return;
+  if(revealed)return;const mU=buf.match(/^(-?[\d.]+)([KMBT]?)$/),u=mU?parseFloat(mU[1])*({'':1,K:1e3,M:1e6,B:1e9,T:1e12}[mU[2]]):NaN;if(!skip&&!isFinite(u))return;
   const ms=performance.now()-t0,ok=!skip&&[cur.ans,...(cur.alts||[])].some(a=>Math.abs(u-a)<=cur.tol+1e-9);revealed=true;
   ok?run.ok++:run.bad++;run.log.push({p:cur,u:skip?null:buf,ok,ms});
   const s=S.stats[cur.cat]||(S.stats[cur.cat]={n:0,c:0,t:0});s.n++;if(ok)s.c++;s.t+=Math.min(ms,60000);save();
@@ -379,7 +446,7 @@ $('skip').onclick=()=>revealed?next():submit(true);
 $('pad').onclick=e=>{const b=e.target.closest('button');if(b)key(b.dataset.k)};
 document.addEventListener('keydown',e=>{
   if($('drill').hidden)return;const k=e.key;
-  if(/^\d$/.test(k)||k==='.')key(k);else if(k==='-')key('-');else if(k==='Backspace')key('B');
+  if(/^\d$/.test(k)||k==='.')key(k);else if(/^[kmbt]$/i.test(k)&&cur&&cur.units)key(k.toUpperCase());else if(k==='-')key('-');else if(k==='Backspace')key('B');
   else if(k==='Enter'){e.preventDefault();key('E')}else if(k==='Escape')$('quit').click();else return;
 });
 home();
