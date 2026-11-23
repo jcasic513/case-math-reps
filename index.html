@@ -161,7 +161,7 @@ summary span{color:var(--mute);font-weight:400}
   <div class="pad" id="pad">
     <div class="units" id="units"><button data-k="K">K</button><button data-k="M">M</button><button data-k="B">B</button><button data-k="T">T</button></div>
     <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="C" class="fn" aria-label="Clear">Clear</button>
-    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="B" class="fn" aria-label="Backspace">⌫</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="BS" class="fn" aria-label="Backspace">⌫</button>
     <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="-" class="fn" aria-label="Plus or minus">±</button>
     <button data-k="0" class="w2">0</button><button data-k=".">.</button><button data-k="E" class="sub fn" aria-label="Submit">Enter</button>
   </div>
@@ -408,12 +408,11 @@ const draw=()=>{$('inp').textContent=buf};
 function key(k){
   if(revealed){if(k==='E')next();return}
   if(k==='E')return submit(false);
-  if(k==='C')buf='';else if(k==='B')buf=buf.slice(0,-1);
+  if(k==='C')buf='';else if(k==='BS')buf=buf.slice(0,-1);
   else if(k==='-')buf=buf.startsWith('-')?buf.slice(1):'-'+buf;
-  else if('KMBT'.includes(k)){if(/\d/.test(buf))buf=buf.replace(/[KMBT]$/,'')+k}
-  else if(/[KMBT]$/.test(buf))return;
-  else if(k==='.'){if(!buf.includes('.'))buf+=(/\d$/.test(buf)?'':'0')+'.'}
-  else if(buf.replace(/[-.]/g,'').length<12)buf+=k;
+  else{const u=(buf.match(/[KMBT]$/)||[''])[0];let n=u?buf.slice(0,-1):buf;
+    if('KMBT'.includes(k))buf=n+(u===k?'':k);
+    else{if(k==='.'){if(!n.includes('.'))n+=(/\d$/.test(n)?'':'0')+'.'}else if(n.replace(/[-.]/g,'').length<12)n+=k;buf=n+u}}
   draw();
 }
 function submit(skip){
@@ -446,7 +445,7 @@ $('skip').onclick=()=>revealed?next():submit(true);
 $('pad').onclick=e=>{const b=e.target.closest('button');if(b)key(b.dataset.k)};
 document.addEventListener('keydown',e=>{
   if($('drill').hidden)return;const k=e.key;
-  if(/^\d$/.test(k)||k==='.')key(k);else if(/^[kmbt]$/i.test(k)&&cur&&cur.units)key(k.toUpperCase());else if(k==='-')key('-');else if(k==='Backspace')key('B');
+  if(/^\d$/.test(k)||k==='.')key(k);else if(/^[kmbt]$/i.test(k)&&cur&&cur.units)key(k.toUpperCase());else if(k==='-')key('-');else if(k==='Backspace')key('BS');
   else if(k==='Enter'){e.preventDefault();key('E')}else if(k==='Escape')$('quit').click();else return;
 });
 home();
